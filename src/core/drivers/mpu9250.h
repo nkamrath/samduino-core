@@ -15,8 +15,8 @@ typedef struct
 
 mpu9250_t Mpu9250_Create(mpu9250_params_t* params);
 void Mpu9250_EnableInterrupts(mpu9250_t dev_ptr);
-uint16_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr);
-void Mpu9250_ReadGyro(mpu9250_t dev_ptr, uint16_t* values);
-void Mpu9250_ReadAccel(mpu9250_t dev_ptr, uint16_t* values);
+uint8_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr);
+void Mpu9250_ReadGyro(mpu9250_t dev_ptr, int16_t* values);
+void Mpu9250_ReadAccel(mpu9250_t dev_ptr, int16_t* values);
 
 #endif

@@ -340,6 +340,10 @@ bool _SetSampleRate(_mpu9250_t* device, uint32_t rate_hz)
         rate_hz = 1000;
     }
 
+    //lpf must have a particular setting to respect to sample rate changes, otherwise sample rate will still be internal rate
+    uint8_t temp_val = 0x01;
+    _Write(device, 26, &temp_val, 1);
+
     uint8_t rate_div = 1000 / (rate_hz - 1);
     _Write(device, RATE_DIV, &rate_div, 1);
     return true;
@@ -347,9 +351,9 @@ bool _SetSampleRate(_mpu9250_t* device, uint32_t rate_hz)
 
 bool _EnableInterrupts(_mpu9250_t* device)
 {
-    uint8_t int_pin_cfg = 0b01100000;
+    uint8_t int_pin_cfg = 0x20; //interrupt pin output should be latched active high
     _Write(device, INT_PIN_CFG, &int_pin_cfg, 1);
-    uint8_t int_enables = (0x01);
+    uint8_t int_enables = (0x01); //interrupts for both dmp and raw data ready
     _Write(device, INT_ENABLE, &int_enables, 1);
     return true;
 }
@@ -375,7 +379,7 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
         //need delay here for hard reset to clear
         volatile int delay_counter = 1200000;
         for(volatile int i = 0; i < delay_counter; i++);
-        //_WakeChip(&_device);
+        _WakeChip(&_device);
 
 		bool res = _CheckWhoAmI(&_device);
 		if(res == false)
@@ -388,9 +392,7 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 			return NULL;
 		}
 
-
         _SetSampleRate(&_device, 4);
-        Mpu9250_GetInterruptStatus(&_device);
 
 		return &_device;
 	}
@@ -404,26 +406,33 @@ void Mpu9250_EnableInterrupts(mpu9250_t dev_ptr)
     Pin_EnableInterrupt(device->int_pin);
     Mpu9250_GetInterruptStatus(device);
     _EnableInterrupts(device);
-    Mpu9250_GetInterruptStatus(device);
 }
 
-uint16_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr)
+uint8_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr)
 {
     _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
     uint16_t status = 0;
-    //_Read(device, DMP_INT_STATUS, &status, 2);
-    _Read(device, INT_STATUS, &status, 1);
+    _Read(device, DMP_INT_STATUS, &status, 2);
+    //_Read(device, INT_STATUS, &status, 1);
     return status;
 }
 
-void Mpu9250_ReadGyro(mpu9250_t dev_ptr, uint16_t* values)
+void Mpu9250_ReadGyro(mpu9250_t dev_ptr, int16_t* values)
 {
     _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
-    _Read(device, RAW_GYRO, values, 6);
+    _Read(device, RAW_GYRO, (uint8_t*)values, 6);
+    //values need to be bytes swapped
+    values[0] = ((values[0]>>8)&0xff) | ((values[0]&0xff)<<8);
+    values[1] = ((values[1]>>8)&0xff) | ((values[1]&0xff)<<8);
+    values[2] = ((values[2]>>8)&0xff) | ((values[2]&0xff)<<8);
 }
 
-void Mpu9250_ReadAccel(mpu9250_t dev_ptr, uint16_t* values)
+void Mpu9250_ReadAccel(mpu9250_t dev_ptr, int16_t* values)
 {
     _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
-    _Read(device, RAW_ACCEL, values, 6);
+    _Read(device, RAW_ACCEL, (uint8_t*)values, 6);
+    //values need to be bytes swapped
+    values[0] = ((values[0]>>8)&0xff) | ((values[0]&0xff)<<8);
+    values[1] = ((values[1]>>8)&0xff) | ((values[1]&0xff)<<8);
+    values[2] = ((values[2]>>8)&0xff) | ((values[2]&0xff)<<8);
 }

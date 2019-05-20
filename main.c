@@ -117,7 +117,7 @@ static void pin_change(void* arg)
 	{
 		SerialUsb_WriteBuffer("irq\r\n", 5);
 		Mpu9250_GetInterruptStatus(mpu);
-		uint16_t temp[3];
+		int16_t temp[3];
 		Mpu9250_ReadGyro(mpu, temp);
 		Mpu9250_ReadAccel(mpu, temp);
 		int_counter = 0;
