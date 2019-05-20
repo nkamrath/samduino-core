@@ -16,8 +16,12 @@
 uart_t uart1;
 spi_t spi;
 pin_t out_pin;
+mpu9250_t mpu;
+
+volatile int int_counter = 0;
+
 bool out_pin_state = false;
-bool mpu_create_result = false;
+volatile bool mpu_create_result = false;
 
 char tx_data[5];
 
@@ -107,7 +111,17 @@ static void uart_tx_ready(uart_t port)
 
 static void pin_change(void* arg)
 {
-	SerialUsb_WriteBuffer(" uart rx rdy\r\n", 14);
+	mpu_create_result = true;
+	int_counter++;
+	//if(int_counter == 2000)
+	{
+		SerialUsb_WriteBuffer("irq\r\n", 5);
+		Mpu9250_GetInterruptStatus(mpu);
+		uint16_t temp[3];
+		Mpu9250_ReadGyro(mpu, temp);
+		Mpu9250_ReadAccel(mpu, temp);
+		int_counter = 0;
+	}
 }
 
 int main(void)
@@ -156,7 +170,11 @@ int main(void)
 	void* bank;
 	uint32_t index;
 
+	void* int_bank;
+	uint32_t int_index;
+
 	Pin_GetBankAndIndex(2, &bank, &index);
+	Pin_GetBankAndIndex(3, &int_bank, &int_index);
 
 	mpu9250_params_t mpu_params = {
 		.spi_params = {
@@ -172,13 +190,24 @@ int main(void)
 			.direction = PIN_DIRECTION__OUTPUT,
 			.initial_state = true,
 			.pull_resistor = PIN_PULL_RESISTOR__UP
+		},
+		.int_pin_params = {
+			.bank = int_bank,
+			.bank_index = int_index,
+			.direction = PIN_DIRECTION__INPUT,
+			.initial_state = false,
+			.pull_resistor = PIN_PULL_RESISTOR__DOWN,
+			.interrupt_trigger = PIN_INTERRUPT_TRIGGER__HIGH,
+			.interrupt_callback = pin_change,
+			.interrupt_callback_arg = NULL
 		}
 	};
 
-	mpu9250_t mpu = Mpu9250_Create(&mpu_params);
+	mpu = Mpu9250_Create(&mpu_params);
 	if(mpu)
 	{
-		mpu_create_result = true;
+		//mpu_create_result = true;
+		Mpu9250_EnableInterrupts(mpu);
 	}
 
 	// pin_t pin = Pin_Create(&pin_params);

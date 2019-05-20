@@ -183,7 +183,6 @@ pin_t Pin_Create(pin_params_t* params)
 			interrupt_attributes |= PIO_IT_EDGE;
 		}
 
-		pio_enable_interrupt(pin->bank, pin->mask);
 		pio_configure_interrupt(pin->bank, pin->mask, interrupt_attributes);
 	}
 
@@ -204,7 +203,8 @@ void Pin_Clear(pin_t pin)
 
 void Pin_EnableInterrupt(pin_t pin)
 {
-
+	_pin_t* temp = (_pin_t*)pin;
+	pio_enable_interrupt(temp->bank, temp->mask);
 }
 
 void Pin_DisableInterrupt(pin_t pin)

@@ -87,5 +87,7 @@ bool Spi_DmaTransfer(spi_t port, void* tx_control, void* tx_data, void* rx_contr
 
 	while((spi_read_status(_spi0.dev) & SPI_SR_TXEMPTY) == 0);
 
+	pdc_disable_transfer(interface->pdc_base, PERIPH_PTCR_RXTDIS | PERIPH_PTCR_TXTDIS);
+
 	return true;
 }

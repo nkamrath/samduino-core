@@ -1,5 +1,17 @@
 #include "mpu9250.h"
 
+#define RATE_DIV                (0x19)
+#define INT_PIN_CFG             (0x37)
+#define INT_ENABLE              (0x38)
+#define DMP_INT_STATUS          (0x39)
+#define INT_STATUS              (0x3A)
+
+#define RAW_ACCEL               (0x3B)
+#define RAW_GYRO                (0x43)
+
+#define USER_CTRL               (0x6A)
+#define PWR_MGMT_1              (0x6B)
+#define PWR_MGMT_2              (0x6C)
 #define MEM_BANK_SEL_ADDR		(0x6D)
 #define MEM_R_W_ADDR			(0x6F)
 #define PRGM_START_H_ADDR		(0x70)
@@ -11,6 +23,7 @@ typedef struct
 {
 	spi_t spi_bus;
 	pin_t cs_pin;
+    pin_t int_pin;
 } _mpu9250_t;
 
 static const unsigned char _dmp_binary[DMP_CODE_SIZE] = {
@@ -230,7 +243,7 @@ void _Write(_mpu9250_t* device, uint8_t address, uint8_t* data, uint8_t data_len
 	uint8_t write_address = address;
 
 	Pin_Clear(device->cs_pin);
-	Spi_DmaTransfer(device->spi_bus, &write_address, data, NULL, NULL, 1, data_length);
+	Spi_DmaTransfer(device->spi_bus, &write_address, data, &write_address, dummy_buffer, 1, data_length);
 	Pin_Set(device->cs_pin);
 }
 
@@ -241,6 +254,31 @@ void _Read(_mpu9250_t* device, uint8_t address, uint8_t* data, uint8_t data_leng
 	Pin_Clear(device->cs_pin);
 	Spi_DmaTransfer(device->spi_bus, &read_address, dummy_buffer, &read_address, data, 1, data_length);
 	Pin_Set(device->cs_pin);
+}
+
+void _HardReset(_mpu9250_t* device)
+{
+    uint8_t reset_val = 0x80;
+    _Write(device, PWR_MGMT_1, &reset_val, 1);
+}
+
+void _WakeChip(_mpu9250_t* device)
+{
+    uint8_t wake_val = 0x00;
+    _Write(device, PWR_MGMT_1, &wake_val, 1);
+    _Write(device, PWR_MGMT_2, &wake_val, 1);
+}
+
+void _RestDmp(_mpu9250_t* device)
+{
+    uint8_t reset_val = 0x08;
+    _Write(device, USER_CTRL, &reset_val, 1);
+}
+
+void _EnableDmp(_mpu9250_t* device)
+{
+    uint8_t enable_val = 0x80;
+    _Write(device, USER_CTRL, &enable_val, 1);
 }
 
 bool _LoadDmpFirmware(_mpu9250_t* device)
@@ -255,6 +293,7 @@ bool _LoadDmpFirmware(_mpu9250_t* device)
 	    uint8_t fw_byte = _dmp_binary[i];
 	    _Write(device, MEM_BANK_SEL_ADDR, tmp, 2);
 	    _Write(device, MEM_R_W_ADDR, &fw_byte, 1);
+
 	    fw_byte = 0;
 	    tmp[0] = (unsigned char)((i >> 8) & 0xff);
 	    tmp[1] = (unsigned char)(i & 0xFF);
@@ -290,6 +329,36 @@ bool _CheckWhoAmI(_mpu9250_t* device)
 	}
 }
 
+bool _SetSampleRate(_mpu9250_t* device, uint32_t rate_hz)
+{
+    if(rate_hz < 4)
+    {
+        rate_hz = 4;
+    }
+    else if(rate_hz > 1000)
+    {
+        rate_hz = 1000;
+    }
+
+    uint8_t rate_div = 1000 / (rate_hz - 1);
+    _Write(device, RATE_DIV, &rate_div, 1);
+    return true;
+}
+
+bool _EnableInterrupts(_mpu9250_t* device)
+{
+    uint8_t int_pin_cfg = 0b01100000;
+    _Write(device, INT_PIN_CFG, &int_pin_cfg, 1);
+    uint8_t int_enables = (0x01);
+    _Write(device, INT_ENABLE, &int_enables, 1);
+    return true;
+}
+
+void _EnableGyro(_mpu9250_t* device)
+{
+
+}
+
 mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 {
 	//first create the underlying spi bus
@@ -298,19 +367,63 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 	if(_device.spi_bus)
 	{
 		_device.cs_pin = Pin_Create(&params->cs_pin_params);
+        _device.int_pin = Pin_Create(&params->int_pin_params);
+
+
+        _HardReset(&_device);
+
+        //need delay here for hard reset to clear
+        volatile int delay_counter = 1200000;
+        for(volatile int i = 0; i < delay_counter; i++);
+        //_WakeChip(&_device);
 
 		bool res = _CheckWhoAmI(&_device);
 		if(res == false)
 		{
 			return NULL;
 		}
-		res = _LoadDmpFirmware(&_device);
+		//res = _LoadDmpFirmware(&_device);
 		if(res == false)
 		{
 			return NULL;
 		}
+
+
+        _SetSampleRate(&_device, 4);
+        Mpu9250_GetInterruptStatus(&_device);
+
 		return &_device;
 	}
 
 	return NULL;
+}
+
+void Mpu9250_EnableInterrupts(mpu9250_t dev_ptr)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    Pin_EnableInterrupt(device->int_pin);
+    Mpu9250_GetInterruptStatus(device);
+    _EnableInterrupts(device);
+    Mpu9250_GetInterruptStatus(device);
+}
+
+uint16_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    uint16_t status = 0;
+    //_Read(device, DMP_INT_STATUS, &status, 2);
+    _Read(device, INT_STATUS, &status, 1);
+    return status;
+}
+
+void Mpu9250_ReadGyro(mpu9250_t dev_ptr, uint16_t* values)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    _Read(device, RAW_GYRO, values, 6);
+}
+
+void Mpu9250_ReadAccel(mpu9250_t dev_ptr, uint16_t* values)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    _Read(device, RAW_ACCEL, values, 6);
 }
