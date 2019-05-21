@@ -15,7 +15,17 @@
 #define MEM_BANK_SEL_ADDR		(0x6D)
 #define MEM_R_W_ADDR			(0x6F)
 #define PRGM_START_H_ADDR		(0x70)
+#define FIFO_COUNT_H            (0x72)
+#define FIFO_R_W                (0x74)
 #define WHO_AM_I_ADDR			(0x75)
+
+#define D_0_22                  (22 + 512)
+#define CFG_LP_QUAT             (2712)
+
+#define DINBC0 0xc0
+#define DINBC2 0xc2
+#define DINBC4 0xc4
+#define DINBC6 0xc6
 
 #define DMP_CODE_SIZE           (3062)
 
@@ -238,7 +248,7 @@ static uint8_t dummy_buffer[64];
 
 static _mpu9250_t _device;
 
-void _Write(_mpu9250_t* device, uint8_t address, uint8_t* data, uint8_t data_length)
+void _Write(_mpu9250_t* device, uint8_t address, void* data, uint8_t data_length)
 {
 	uint8_t write_address = address;
 
@@ -247,13 +257,22 @@ void _Write(_mpu9250_t* device, uint8_t address, uint8_t* data, uint8_t data_len
 	Pin_Set(device->cs_pin);
 }
 
-void _Read(_mpu9250_t* device, uint8_t address, uint8_t* data, uint8_t data_length)
+void _Read(_mpu9250_t* device, uint8_t address, void* data, uint8_t data_length)
 {
 	uint8_t read_address = address | 0x80; //msb is read bit set for read
 
 	Pin_Clear(device->cs_pin);
 	Spi_DmaTransfer(device->spi_bus, &read_address, dummy_buffer, &read_address, data, 1, data_length);
 	Pin_Set(device->cs_pin);
+}
+
+void _WriteDmpMem(_mpu9250_t* device, uint16_t address, void* data, uint8_t data_length)
+{
+    uint8_t tmp[2];
+    tmp[0] = (unsigned char)((address >> 8) & 0xff);
+    tmp[1] = (unsigned char)(address & 0xFF);
+    _Write(device, MEM_BANK_SEL_ADDR, tmp, 2);
+    _Write(device, MEM_R_W_ADDR, data, data_length);
 }
 
 void _HardReset(_mpu9250_t* device)
@@ -265,7 +284,7 @@ void _HardReset(_mpu9250_t* device)
 void _WakeChip(_mpu9250_t* device)
 {
     uint8_t wake_val = 0x00;
-    _Write(device, PWR_MGMT_1, &wake_val, 1);
+    //_Write(device, PWR_MGMT_1, &wake_val, 1);
     _Write(device, PWR_MGMT_2, &wake_val, 1);
 }
 
@@ -277,7 +296,7 @@ void _RestDmp(_mpu9250_t* device)
 
 void _EnableDmp(_mpu9250_t* device)
 {
-    uint8_t enable_val = 0x80;
+    uint8_t enable_val = 0x80 | (1<<6) | (1<<2);
     _Write(device, USER_CTRL, &enable_val, 1);
 }
 
@@ -285,14 +304,21 @@ bool _LoadDmpFirmware(_mpu9250_t* device)
 {
 	unsigned char tmp[2];
 
+    uint16_t start_address = 0x0400;
+    tmp[0] = start_address >> 8;
+    tmp[1] = start_address & 0xFF;
+    
+    _Write(device, PRGM_START_H_ADDR, tmp, 2);
+
 	for(int i = 0; i < DMP_CODE_SIZE; i++)
 	{
 	    tmp[0] = (unsigned char)((i >> 8) & 0xff);
 	    tmp[1] = (unsigned char)(i & 0xFF);
 
 	    uint8_t fw_byte = _dmp_binary[i];
-	    _Write(device, MEM_BANK_SEL_ADDR, tmp, 2);
-	    _Write(device, MEM_R_W_ADDR, &fw_byte, 1);
+	    // _Write(device, MEM_BANK_SEL_ADDR, tmp, 2);
+	    // _Write(device, MEM_R_W_ADDR, &fw_byte, 1);
+        _WriteDmpMem(device, i, &fw_byte, 1);
 
 	    fw_byte = 0;
 	    tmp[0] = (unsigned char)((i >> 8) & 0xff);
@@ -306,11 +332,24 @@ bool _LoadDmpFirmware(_mpu9250_t* device)
 
 	}
 
-	uint16_t start_address = 0x0400;
 	tmp[0] = start_address >> 8;
 	tmp[1] = start_address & 0xFF;
 	
 	_Write(device, PRGM_START_H_ADDR, tmp, 2);
+
+    //setup dmp sample rate
+    //uint16_t dmp_div = 1;//DMP_SAMPLE_RATE / rate - 1;
+    //tmp[0] = (unsigned char)((dmp_div >> 8) & 0xFF);
+    //tmp[1] = (unsigned char)(dmp_div & 0xFF);
+    //_WriteDmpMem(device, D_0_22, tmp, 2);
+
+    unsigned char regs[4];
+    regs[0] = DINBC0;
+    regs[1] = DINBC2;
+    regs[2] = DINBC4;
+    regs[3] = DINBC6;
+
+    _WriteDmpMem(device, CFG_LP_QUAT, regs, 4);
 
 	return true;
 }
@@ -353,9 +392,15 @@ bool _EnableInterrupts(_mpu9250_t* device)
 {
     uint8_t int_pin_cfg = 0x20; //interrupt pin output should be latched active high
     _Write(device, INT_PIN_CFG, &int_pin_cfg, 1);
-    uint8_t int_enables = (0x01); //interrupts for both dmp and raw data ready
+    uint8_t int_enables = (0x03); //interrupts for both dmp and raw data ready
     _Write(device, INT_ENABLE, &int_enables, 1);
     return true;
+}
+
+void _EnableFifo(_mpu9250_t* device)
+{
+    uint8_t enable_value = (1<<6) | (1<<2);
+    _Write(device, USER_CTRL, &enable_value, 1);
 }
 
 void _EnableGyro(_mpu9250_t* device)
@@ -377,7 +422,7 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
         _HardReset(&_device);
 
         //need delay here for hard reset to clear
-        volatile int delay_counter = 1200000;
+        volatile int delay_counter = 2200000;
         for(volatile int i = 0; i < delay_counter; i++);
         _WakeChip(&_device);
 
@@ -386,13 +431,15 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 		{
 			return NULL;
 		}
-		//res = _LoadDmpFirmware(&_device);
+
+		res = _LoadDmpFirmware(&_device);
 		if(res == false)
 		{
 			return NULL;
 		}
 
         _SetSampleRate(&_device, 4);
+        _EnableFifo(&_device);
 
 		return &_device;
 	}
@@ -408,19 +455,23 @@ void Mpu9250_EnableInterrupts(mpu9250_t dev_ptr)
     _EnableInterrupts(device);
 }
 
-uint8_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr)
+void Mpu9250_EnableDmp(mpu9250_t dev_ptr)
+{
+    _EnableDmp(dev_ptr);
+}
+
+uint16_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr)
 {
     _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
     uint16_t status = 0;
-    _Read(device, DMP_INT_STATUS, &status, 2);
-    //_Read(device, INT_STATUS, &status, 1);
+    _Read(device, DMP_INT_STATUS, &status, 2); //need to read 2 bytes here to clear interrupt? DMP stuff?
     return status;
 }
 
 void Mpu9250_ReadGyro(mpu9250_t dev_ptr, int16_t* values)
 {
     _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
-    _Read(device, RAW_GYRO, (uint8_t*)values, 6);
+    _Read(device, RAW_GYRO, values, 6);
     //values need to be bytes swapped
     values[0] = ((values[0]>>8)&0xff) | ((values[0]&0xff)<<8);
     values[1] = ((values[1]>>8)&0xff) | ((values[1]&0xff)<<8);
@@ -430,9 +481,32 @@ void Mpu9250_ReadGyro(mpu9250_t dev_ptr, int16_t* values)
 void Mpu9250_ReadAccel(mpu9250_t dev_ptr, int16_t* values)
 {
     _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
-    _Read(device, RAW_ACCEL, (uint8_t*)values, 6);
+    _Read(device, RAW_ACCEL, values, 6);
     //values need to be bytes swapped
     values[0] = ((values[0]>>8)&0xff) | ((values[0]&0xff)<<8);
     values[1] = ((values[1]>>8)&0xff) | ((values[1]&0xff)<<8);
     values[2] = ((values[2]>>8)&0xff) | ((values[2]&0xff)<<8);
+}
+
+bool Mpu9250_ReadQuat(mpu9250_t dev_ptr, int32_t* values)
+{
+    uint16_t fifo_count = 0;
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    _Read(device, FIFO_COUNT_H, &fifo_count, 2);
+
+    fifo_count = ((fifo_count&0xff) << 8) | (fifo_count >> 8);
+
+    if(fifo_count == 16)
+    {
+        //read from the fifo
+        _Read(device, FIFO_R_W, values, 16);
+        return true;
+    }
+    else if(fifo_count > 16)
+    {
+        
+        //reset the fifo as it could be corrupted due to mpu9250 fifo corruption problem
+        _EnableDmp(device);
+    }
+    return false;
 }

@@ -111,15 +111,26 @@ static void uart_tx_ready(uart_t port)
 
 static void pin_change(void* arg)
 {
-	mpu_create_result = true;
 	int_counter++;
-	//if(int_counter == 2000)
+
+	Mpu9250_GetInterruptStatus(mpu);
+	int16_t temp[3];
+	Mpu9250_ReadGyro(mpu, temp);
+	Mpu9250_ReadAccel(mpu, temp);
+
+	int32_t quat[4];
+	bool quat_ready = Mpu9250_ReadQuat(mpu, quat);
+
+
+	if(int_counter == 200)
 	{
 		SerialUsb_WriteBuffer("irq\r\n", 5);
-		Mpu9250_GetInterruptStatus(mpu);
-		int16_t temp[3];
-		Mpu9250_ReadGyro(mpu, temp);
-		Mpu9250_ReadAccel(mpu, temp);
+		if(quat_ready)
+		{
+			SerialUsb_WriteBuffer("quat\r\n", 6);
+		}
+
+
 		int_counter = 0;
 	}
 }
@@ -206,8 +217,9 @@ int main(void)
 	mpu = Mpu9250_Create(&mpu_params);
 	if(mpu)
 	{
-		//mpu_create_result = true;
+		mpu_create_result = true;
 		Mpu9250_EnableInterrupts(mpu);
+		Mpu9250_EnableDmp(mpu);
 	}
 
 	// pin_t pin = Pin_Create(&pin_params);
