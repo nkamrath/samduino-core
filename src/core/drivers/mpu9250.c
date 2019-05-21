@@ -338,10 +338,10 @@ bool _LoadDmpFirmware(_mpu9250_t* device)
 	_Write(device, PRGM_START_H_ADDR, tmp, 2);
 
     //setup dmp sample rate
-    //uint16_t dmp_div = 1;//DMP_SAMPLE_RATE / rate - 1;
-    //tmp[0] = (unsigned char)((dmp_div >> 8) & 0xFF);
-    //tmp[1] = (unsigned char)(dmp_div & 0xFF);
-    //_WriteDmpMem(device, D_0_22, tmp, 2);
+    uint16_t dmp_div = 1;//DMP_SAMPLE_RATE / rate - 1;
+    tmp[0] = (unsigned char)((dmp_div >> 8) & 0xFF);
+    tmp[1] = (unsigned char)(dmp_div & 0xFF);
+    _WriteDmpMem(device, D_0_22, tmp, 2);
 
     unsigned char regs[4];
     regs[0] = DINBC0;

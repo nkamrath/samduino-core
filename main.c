@@ -122,7 +122,7 @@ static void pin_change(void* arg)
 	bool quat_ready = Mpu9250_ReadQuat(mpu, quat);
 
 
-	if(int_counter == 200)
+	//if(int_counter == 200)
 	{
 		SerialUsb_WriteBuffer("irq\r\n", 5);
 		if(quat_ready)
