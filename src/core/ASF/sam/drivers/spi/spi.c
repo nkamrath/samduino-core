@@ -373,6 +373,11 @@ int16_t spi_calc_baudrate_div(const uint32_t baudrate, uint32_t mck)
 {
 	int baud_div = div_ceil(mck, baudrate);
 
+	if(baud_div * baudrate > mck)
+	{
+		baud_div++;
+	}
+
 	/* The value of baud_div is from 1 to 255 in the SCBR field. */
 	if (baud_div <= 0 || baud_div > 255) {
 		return -1;

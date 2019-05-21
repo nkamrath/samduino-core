@@ -37,6 +37,10 @@ spi_t Spi_Create(spi_params_t* params)
 		spi_disable_peripheral_select_decode(interface->dev);
 		
 		spi_set_bits_per_transfer(interface->dev, 0, SPI_CSR_BITS_8_BIT);
+		//clock setting is important to get a close to desired rate WITHOUT going over.
+		//many peripherals can not exceed their max clock rate spec so div must be handled accordingly
+		//uint8_t baud_rate_div = sysclk_get_cpu_hz() / interface->clk_hz;
+		//spi_set_baudrate_div(interface->dev, 0, baud_rate_div);
 		spi_set_baudrate_div(interface->dev, 0, spi_calc_baudrate_div(interface->clk_hz, sysclk_get_cpu_hz()));
 		spi_configure_cs_behavior(interface->dev, 0, SPI_CS_KEEP_LOW);
 		spi_set_clock_polarity(interface->dev, params->polarity, 0);

@@ -300,6 +300,12 @@ void _EnableDmp(_mpu9250_t* device)
     _Write(device, USER_CTRL, &enable_val, 1);
 }
 
+void _ResetFifo(_mpu9250_t* device)
+{
+    uint8_t write_val = (1<<6) | (1<<2);
+    _Write(device, USER_CTRL, &write_val, 1);
+}
+
 bool _LoadDmpFirmware(_mpu9250_t* device)
 {
 	unsigned char tmp[2];
@@ -338,7 +344,7 @@ bool _LoadDmpFirmware(_mpu9250_t* device)
 	_Write(device, PRGM_START_H_ADDR, tmp, 2);
 
     //setup dmp sample rate
-    uint16_t dmp_div = 1;//DMP_SAMPLE_RATE / rate - 1;
+    uint16_t dmp_div = 0;//DMP_SAMPLE_RATE / rate - 1;
     tmp[0] = (unsigned char)((dmp_div >> 8) & 0xFF);
     tmp[1] = (unsigned char)(dmp_div & 0xFF);
     _WriteDmpMem(device, D_0_22, tmp, 2);
@@ -380,10 +386,10 @@ bool _SetSampleRate(_mpu9250_t* device, uint32_t rate_hz)
     }
 
     //lpf must have a particular setting to respect to sample rate changes, otherwise sample rate will still be internal rate
-    uint8_t temp_val = 0x01;
+    uint8_t temp_val = 0x06;
     _Write(device, 26, &temp_val, 1);
 
-    uint8_t rate_div = 1000 / (rate_hz - 1);
+    uint8_t rate_div = (1000 / rate_hz) - 1;
     _Write(device, RATE_DIV, &rate_div, 1);
     return true;
 }
@@ -438,7 +444,7 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 			return NULL;
 		}
 
-        _SetSampleRate(&_device, 4);
+        _SetSampleRate(&_device, 200);
         _EnableFifo(&_device);
 
 		return &_device;
@@ -502,10 +508,11 @@ bool Mpu9250_ReadQuat(mpu9250_t dev_ptr, int32_t* values)
         _Read(device, FIFO_R_W, values, 16);
         return true;
     }
-    else if(fifo_count > 16)
+    else// if(fifo_count > 0)
     {
         
         //reset the fifo as it could be corrupted due to mpu9250 fifo corruption problem
+        //_ResetFifo(device);
         _EnableDmp(device);
     }
     return false;

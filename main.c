@@ -68,6 +68,10 @@ static void task_led(void *pvParameters)
 		{
 			SerialUsb_WriteBuffer("f\n", 2);
 		}
+
+		char tmp[20];
+		snprintf(tmp, 20, "irqs: %d\r\n", int_counter);
+		SerialUsb_WriteBuffer(tmp, 20);
 	}
 }
 
@@ -111,7 +115,6 @@ static void uart_tx_ready(uart_t port)
 
 static void pin_change(void* arg)
 {
-	int_counter++;
 
 	Mpu9250_GetInterruptStatus(mpu);
 	int16_t temp[3];
@@ -121,14 +124,18 @@ static void pin_change(void* arg)
 	int32_t quat[4];
 	bool quat_ready = Mpu9250_ReadQuat(mpu, quat);
 
-
-	//if(int_counter == 200)
+	if(quat_ready)
 	{
-		SerialUsb_WriteBuffer("irq\r\n", 5);
-		if(quat_ready)
-		{
-			SerialUsb_WriteBuffer("quat\r\n", 6);
-		}
+		int_counter++;
+	}
+
+	if(int_counter == 9999)
+	{
+		//SerialUsb_WriteBuffer("irq\r\n", 5);
+		//if(quat_ready)
+		//{
+		//	SerialUsb_WriteBuffer("quat\r\n", 6);
+		//}
 
 
 		int_counter = 0;
@@ -208,7 +215,7 @@ int main(void)
 			.direction = PIN_DIRECTION__INPUT,
 			.initial_state = false,
 			.pull_resistor = PIN_PULL_RESISTOR__DOWN,
-			.interrupt_trigger = PIN_INTERRUPT_TRIGGER__HIGH,
+			.interrupt_trigger = PIN_INTERRUPT_TRIGGER__RISING,
 			.interrupt_callback = pin_change,
 			.interrupt_callback_arg = NULL
 		}
