@@ -512,7 +512,6 @@ bool Mpu9250_ReadQuat(mpu9250_t dev_ptr, int32_t* values)
     {
         
         //reset the fifo as it could be corrupted due to mpu9250 fifo corruption problem
-        //_ResetFifo(device);
         _EnableDmp(device);
     }
     return false;
