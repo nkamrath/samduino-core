@@ -23,6 +23,12 @@
 
 #define D_0_22                  (22 + 512)
 #define CFG_LP_QUAT             (2712)
+#define CFG_8                   (2718)
+
+#define DINA20 0x20
+#define DINA28 0x28
+#define DINA30 0x30
+#define DINA38 0x38
 
 #define DINBC0 0xc0
 #define DINBC2 0xc2
@@ -346,18 +352,24 @@ bool _LoadDmpFirmware(_mpu9250_t* device)
 	_Write(device, PRGM_START_H_ADDR, tmp, 2);
 
     //setup dmp sample rate
-    uint16_t dmp_div = 0;//DMP_SAMPLE_RATE / rate - 1;
+    uint16_t dmp_div = 1;//DMP_SAMPLE_RATE / rate - 1;
     tmp[0] = (unsigned char)((dmp_div >> 8) & 0xFF);
     tmp[1] = (unsigned char)(dmp_div & 0xFF);
     _WriteDmpMem(device, D_0_22, tmp, 2);
 
     unsigned char regs[4];
-    regs[0] = DINBC0;
-    regs[1] = DINBC2;
-    regs[2] = DINBC4;
-    regs[3] = DINBC6;
+    // regs[0] = DINBC0;
+    // regs[1] = DINBC2;
+    // regs[2] = DINBC4;
+    // regs[3] = DINBC6;
+    //_WriteDmpMem(device, CFG_LP_QUAT, regs, 4);
 
-    _WriteDmpMem(device, CFG_LP_QUAT, regs, 4);
+    regs[0] = DINA20;
+    regs[1] = DINA28;
+    regs[2] = DINA30;
+    regs[3] = DINA38;
+
+    _WriteDmpMem(device, CFG_8, regs, 4);
 
 	return true;
 }
@@ -388,7 +400,7 @@ bool _SetSampleRate(_mpu9250_t* device, uint32_t rate_hz)
     }
 
     //lpf must have a particular setting to respect to sample rate changes, otherwise sample rate will still be internal rate
-    uint8_t temp_val = 0x06;
+    uint8_t temp_val = 0x01;
     _Write(device, 26, &temp_val, 1);
 
     uint8_t rate_div = (1000 / rate_hz) - 1;

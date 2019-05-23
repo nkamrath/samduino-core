@@ -117,9 +117,10 @@ static void pin_change(void* arg)
 {
 
 	Mpu9250_GetInterruptStatus(mpu);
-	int16_t temp[3];
-	Mpu9250_ReadGyro(mpu, temp);
-	Mpu9250_ReadAccel(mpu, temp);
+	int16_t gyro[3];
+	Mpu9250_ReadGyro(mpu, gyro);
+	int16_t accel[3];
+	Mpu9250_ReadAccel(mpu, accel);
 
 	int32_t quat[4];
 	bool quat_ready = Mpu9250_ReadQuat(mpu, quat);
@@ -132,6 +133,8 @@ static void pin_change(void* arg)
 			uint32_t marker = 0xa5a5;
 			SerialUsb_WriteBuffer(&marker, 4);
 			SerialUsb_WriteBuffer(quat, 16);
+			SerialUsb_WriteBuffer(accel, 6);
+			SerialUsb_WriteBuffer(gyro, 6);
 			int_counter = 0;
 		}
 	}
