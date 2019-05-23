@@ -3,7 +3,8 @@
 
 #include <asf.h>
 
-void* Thread_Create(void(*thread_function)(void* arg), char* thread_name, uint32_t thread_stack_size,
+typedef void* thread_t;
+thread_t Thread_Create(void(*thread_function)(void* arg), char* thread_name, uint32_t thread_stack_size,
 						void* arg, uint8_t thread_priority);
 
 #endif

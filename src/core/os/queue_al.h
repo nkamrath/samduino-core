@@ -6,7 +6,7 @@
 typedef void* queue_t;
 
 #define QUEUE_BLOCK_NONE 0
-#define QUEUE_BLOCK_INFINTE portMAX_DELAY
+#define QUEUE_BLOCK_INFINITE portMAX_DELAY
 
 queue_t Queue_Create(uint32_t queue_length, uint32_t item_size);
 
