@@ -1,6 +1,8 @@
 #include "mpu9250.h"
 
 #define RATE_DIV                (0x19)
+#define GYRO_CONFIG             (0x1B)
+#define ACCEL_CONFIG            (0x1C)
 #define INT_PIN_CFG             (0x37)
 #define INT_ENABLE              (0x38)
 #define DMP_INT_STATUS          (0x39)
@@ -414,6 +416,18 @@ void _EnableGyro(_mpu9250_t* device)
 
 }
 
+void _DisableAllSensors(_mpu9250_t* device)
+{
+    uint8_t disable_flags = 0b00011111;
+    _Write(device, PWR_MGMT_2, &disable_flags, 1);
+}
+
+void _EnableAllSensors(_mpu9250_t* device)
+{
+    uint8_t enable_flags = 0x00;
+    _Write(device, PWR_MGMT_2, &enable_flags, 1);
+}
+
 mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 {
 	//first create the underlying spi bus
@@ -438,14 +452,20 @@ mpu9250_t Mpu9250_Create(mpu9250_params_t* params)
 			return NULL;
 		}
 
+        _DisableAllSensors(&_device);
+
 		res = _LoadDmpFirmware(&_device);
 		if(res == false)
 		{
 			return NULL;
 		}
 
+        Mpu9250_SetGyroScale(&_device, params->gyro_scale);
+        Mpu9250_SetAccelScale(&_device, params->accel_scale);
         _SetSampleRate(&_device, 200);
         _EnableFifo(&_device);
+
+        _EnableAllSensors(&_device);
 
 		return &_device;
 	}
@@ -515,4 +535,18 @@ bool Mpu9250_ReadQuat(mpu9250_t dev_ptr, int32_t* values)
         _EnableDmp(device);
     }
     return false;
+}
+
+void Mpu9250_SetGyroScale(mpu9250_t dev_ptr, gyro_scale_t scale)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    uint8_t scale_write = scale<<3;
+    _Write(device, GYRO_CONFIG, &scale_write, 1);
+}
+
+void Mpu9250_SetAccelScale(mpu9250_t dev_ptr, accel_scale_t scale)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    uint8_t scale_write = scale<<3;
+    _Write(device, ACCEL_CONFIG, &scale_write, 1);
 }

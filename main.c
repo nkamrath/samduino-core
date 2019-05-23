@@ -62,16 +62,16 @@ static void task_led(void *pvParameters)
 
 		if(mpu_create_result)
 		{
-			SerialUsb_WriteBuffer("s\n", 2);
+			//SerialUsb_WriteBuffer("s\n", 2);
 		}
 		else
 		{
-			SerialUsb_WriteBuffer("f\n", 2);
+			//SerialUsb_WriteBuffer("f\n", 2);
 		}
 
 		char tmp[20];
 		snprintf(tmp, 20, "irqs: %d\r\n", int_counter);
-		SerialUsb_WriteBuffer(tmp, 20);
+		//SerialUsb_WriteBuffer(tmp, 20);
 	}
 }
 
@@ -127,18 +127,13 @@ static void pin_change(void* arg)
 	if(quat_ready)
 	{
 		int_counter++;
-	}
-
-	if(int_counter == 9999)
-	{
-		//SerialUsb_WriteBuffer("irq\r\n", 5);
-		//if(quat_ready)
-		//{
-		//	SerialUsb_WriteBuffer("quat\r\n", 6);
-		//}
-
-
-		int_counter = 0;
+		if(int_counter == 5)
+		{
+			uint32_t marker = 0xa5a5;
+			SerialUsb_WriteBuffer(&marker, 4);
+			SerialUsb_WriteBuffer(quat, 16);
+			int_counter = 0;
+		}
 	}
 }
 
@@ -218,7 +213,9 @@ int main(void)
 			.interrupt_trigger = PIN_INTERRUPT_TRIGGER__RISING,
 			.interrupt_callback = pin_change,
 			.interrupt_callback_arg = NULL
-		}
+		},
+		.gyro_scale = GYRO_SCALE__2000DPS,
+		.accel_scale = ACCEL_SCALE__4G
 	};
 
 	mpu = Mpu9250_Create(&mpu_params);
