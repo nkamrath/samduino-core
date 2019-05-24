@@ -10,7 +10,7 @@ void Thread_Create(void(*thread_function)(void* arg), char* thread_name, uint32_
 
 void Thread_Delay(uint32_t time_ms)
 {
-	vTaskDelay(500 / portTICK_PERIOD_MS);
+	vTaskDelay(time_ms / portTICK_PERIOD_MS);
 }
 
 void Thread_WaitNotify(uint32_t timeout)
