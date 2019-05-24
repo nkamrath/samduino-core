@@ -4,6 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define SD_FILE_WRITE_FLAG 				FA_WRITE
+#define SD_FILE_CREATE_ALWAYS_FLAG 		FA_CREATE_ALWAYS
+#define SD_FILE_CREATE_NEW_FLAG 		FA_CREATE_NEW
+#define SD_FILE_READ_FLAG 				FA_READ
+#define SD_FILE_OPEN_ALWAYS				FA_OPEN_ALWAYS
+
 typedef void* sd_file_t;
 
 int SdCard_Create(void);
