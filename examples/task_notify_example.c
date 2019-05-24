@@ -16,14 +16,15 @@
 
 pin_t in_pin;
 pin_t out_pin;
-thread_t print_thread;
+
+thread_t task_monitor_thread;
+thread_t led_thread;
 
 static void task_monitor(void *pvParameters)
 {
 	UNUSED(pvParameters);
-	uint32_t notified_value;
 	for (;;) {
-		xTaskNotifyWait(0x00, 0xffffffff, &notified_value, QUEUE_BLOCK_INFINITE);
+		Thread_WaitNotify(THREAD_BLOCK_INFINITE);
 		SerialUsb_WriteBuffer("test\r\n", 6);
 	}
 }
@@ -41,8 +42,7 @@ static void task_led(void *pvParameters)
 
 void pin_change(void* arg)
 {
-	BaseType_t woken = 0;
-	xTaskNotifyFromISR(print_thread, 0x01, eSetBits, &woken);
+	Thread_Notify(task_monitor_thread);
 }
 
 int main(void)
@@ -85,8 +85,8 @@ int main(void)
 	Pin_EnableInterrupt(in_pin);
 
 	/* create some threads */
-	print_thread = Thread_Create(task_monitor, "Monitor", TASK_MONITOR_STACK_SIZE, NULL, TASK_MONITOR_STACK_PRIORITY);
-	Thread_Create(task_led, "Led", TASK_LED_STACK_SIZE, NULL, TASK_LED_STACK_PRIORITY);
+	Thread_Create(task_monitor, "Monitor", TASK_MONITOR_STACK_SIZE, NULL, TASK_MONITOR_STACK_PRIORITY, &task_monitor_thread);
+	Thread_Create(task_led, "Led", TASK_LED_STACK_SIZE, NULL, TASK_LED_STACK_PRIORITY, NULL);
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
