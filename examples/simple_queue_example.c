@@ -79,8 +79,8 @@ int main(void)
 	test_queue = Queue_Create(2, 4);
 
 	/* create some threads */
-	Thread_Create(task_monitor, "Monitor", TASK_MONITOR_STACK_SIZE, NULL, TASK_MONITOR_STACK_PRIORITY);
-	Thread_Create(task_led, "Led", TASK_LED_STACK_SIZE, NULL, TASK_LED_STACK_PRIORITY);
+	Thread_Create(task_monitor, "Monitor", TASK_MONITOR_STACK_SIZE, NULL, TASK_MONITOR_STACK_PRIORITY, NULL);
+	Thread_Create(task_led, "Led", TASK_LED_STACK_SIZE, NULL, TASK_LED_STACK_PRIORITY, NULL);
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
