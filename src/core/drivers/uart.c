@@ -4,6 +4,7 @@ typedef struct
 {
 	Uart* dev;
 	uint32_t baud_rate;
+	void* callback_arg;
 	void (*tx_ready_callback)(uart_t dev, void** next_tx_buffer, uint32_t* next_tx_buffer_length);
 	void (*rx_ready_callback)(uart_t dev, void* rx_data, uint32_t rx_length, void** next_rx_buffer, uint32_t* next_rx_buffer_length);
 	Pdc* pdc_base;
@@ -49,7 +50,7 @@ void UART0_Handler()
 		void* rx_ptr = (void*)pdc_read_rx_ptr(_uart0.pdc_base);
 		uint32_t rx_length = pdc_read_rx_counter(_uart0.pdc_base);
 
-		_uart0.rx_ready_callback(UART0, rx_ptr, rx_length, &next_buffer, &next_buffer_length);
+		_uart0.rx_ready_callback(_uart0.callback_arg, rx_ptr, rx_length, &next_buffer, &next_buffer_length);
 		if(next_buffer && next_buffer_length > 0)
 		{
 			_SetupRxDma(&_uart0, next_buffer, next_buffer_length);
@@ -58,7 +59,7 @@ void UART0_Handler()
 	
 	if(uart_status & UART_SR_TXEMPTY)
 	{
-		_uart0.tx_ready_callback(UART0, &next_buffer, &next_buffer_length);
+		_uart0.tx_ready_callback(_uart0.callback_arg, &next_buffer, &next_buffer_length);
 		if(next_buffer && next_buffer_length)
 		{
 			_SetupTxDma(&_uart0, next_buffer, next_buffer_length);
@@ -77,7 +78,7 @@ void UART1_Handler()
 		void* rx_ptr = (void*)pdc_read_rx_ptr(_uart1.pdc_base);
 		uint32_t rx_length = pdc_read_rx_counter(_uart1.pdc_base);
 
-		_uart1.rx_ready_callback(UART1, rx_ptr, rx_length, &next_buffer, &next_buffer_length);
+		_uart1.rx_ready_callback(_uart1.callback_arg, rx_ptr, rx_length, &next_buffer, &next_buffer_length);
 		if(next_buffer && next_buffer_length > 0)
 		{
 			_SetupRxDma(&_uart1, next_buffer, next_buffer_length);
@@ -86,7 +87,7 @@ void UART1_Handler()
 	
 	if(uart_status & UART_SR_TXEMPTY)
 	{
-		_uart1.tx_ready_callback(UART1, &next_buffer, &next_buffer_length);
+		_uart1.tx_ready_callback(_uart1.callback_arg, &next_buffer, &next_buffer_length);
 		if(next_buffer && next_buffer_length)
 		{
 			_SetupTxDma(&_uart1, next_buffer, next_buffer_length);
@@ -130,6 +131,7 @@ uart_t Uart_Create(uart_params_t* params)
 	interface->rx_ready_callback = params->rx_ready_callback;
 	interface->baud_rate = params->baud_rate;
 	interface->pdc_base = pdc_base;
+	interface->callback_arg = params->callback_arg;
 
 	//setup the options for the uart
 	sam_uart_opt_t uart_settings = 
