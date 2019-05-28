@@ -163,3 +163,23 @@ bool Uart_DmaRead(uart_t port, void* buffer, uint32_t buffer_length)
 	_SetupRxDma(port, buffer, buffer_length);
 	return true;
 }
+
+void Uart_StopWrite(uart_t port, void** buffer, uint32_t* buffer_length)
+{
+	_uart_t* interface = (_uart_t*)port;
+
+	pdc_disable_transfer(interface->pdc_base, PERIPH_PTCR_TXTDIS);
+
+	*buffer = (void*) pdc_read_tx_ptr(interface->pdc_base);
+	*buffer_length = pdc_read_tx_counter(interface->pdc_base);
+}
+
+void Uart_StopRead(uart_t port, void** buffer, uint32_t* buffer_length)
+{
+	_uart_t* interface = (_uart_t*)port;
+
+	pdc_disable_transfer(interface->pdc_base, PERIPH_PTCR_RXTDIS);
+
+	*buffer = (void*) pdc_read_rx_ptr(interface->pdc_base);
+	*buffer_length = pdc_read_rx_counter(interface->pdc_base);
+}

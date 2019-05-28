@@ -20,4 +20,7 @@ bool Uart_Destroy(uart_t dev);
 bool Uart_DmaWrite(uart_t port, void* buffer, uint32_t buffer_length);
 bool Uart_DmaRead(uart_t port, void* buffer, uint32_t buffer_length);
 
+void Uart_StopWrite(uart_t port, void** buffer, uint32_t* buffer_length);
+void Uart_StopRead(uart_t port, void** buffer, uint32_t* buffer_length);
+
 #endif
