@@ -38,6 +38,7 @@ uint16_t Mpu9250_GetInterruptStatus(mpu9250_t dev_ptr);
 void Mpu9250_ReadGyro(mpu9250_t dev_ptr, int16_t* values);
 void Mpu9250_ReadAccel(mpu9250_t dev_ptr, int16_t* values);
 bool Mpu9250_ReadQuat(mpu9250_t dev_ptr, int32_t* values);
+bool Mpu9250_ReadMag(mpu9250_t dev_ptr, int16_t* values);
 void Mpu9250_SetGyroScale(mpu9250_t dev_ptr, gyro_scale_t scale);
 void Mpu9250_SetAccelScale(mpu9250_t dev_ptr, accel_scale_t scale);
 
