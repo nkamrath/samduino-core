@@ -4,8 +4,9 @@ typedef struct
 {
 	Uart* dev;
 	uint32_t baud_rate;
-	void (*tx_ready_callback)(uart_t dev);
-	void (*rx_ready_callback)(uart_t dev);
+	void* callback_arg;
+	void (*tx_ready_callback)(uart_t dev, void** next_tx_buffer, uint32_t* next_tx_buffer_length);
+	void (*rx_ready_callback)(uart_t dev, void* rx_data, uint32_t rx_length, void** next_rx_buffer, uint32_t* next_rx_buffer_length);
 	Pdc* pdc_base;
 	pdc_packet_t tx_dma_packet;
 	pdc_packet_t rx_dma_packet;
@@ -14,31 +15,83 @@ typedef struct
 static _uart_t _uart0;
 static _uart_t _uart1;
 
+void _SetupRxDma(uart_t port, void* buffer, uint32_t length)
+{
+	_uart_t* interface = (_uart_t*)port;
+
+	interface->rx_dma_packet.ul_addr = (uint32_t)buffer;
+	interface->rx_dma_packet.ul_size = length;
+
+	pdc_rx_init(interface->pdc_base, &interface->rx_dma_packet, NULL);
+	uart_enable_interrupt(interface->dev, UART_IER_RXBUFF);
+	pdc_enable_transfer(interface->pdc_base, PERIPH_PTCR_RXTEN);
+}
+
+void _SetupTxDma(uart_t port, void* buffer, uint32_t length)
+{
+	_uart_t* interface = (_uart_t*)port;
+
+	interface->tx_dma_packet.ul_addr = (uint32_t)buffer;
+	interface->tx_dma_packet.ul_size = length;
+
+	pdc_tx_init(interface->pdc_base, &interface->tx_dma_packet, NULL);
+	uart_enable_interrupt(interface->dev, UART_IER_TXEMPTY);
+	pdc_enable_transfer(interface->pdc_base, PERIPH_PTCR_TXTEN);
+}
+
 void UART0_Handler()
 {
+	void* next_buffer = NULL;
+	uint32_t next_buffer_length = 0;
+
 	uint32_t uart_status = uart_get_status(UART0);
 	if(uart_status & (UART_SR_RXRDY | UART_IER_RXBUFF))
 	{
-		_uart0.rx_ready_callback(UART0);
+		void* rx_ptr = (void*)pdc_read_rx_ptr(_uart0.pdc_base);
+		uint32_t rx_length = pdc_read_rx_counter(_uart0.pdc_base);
+
+		_uart0.rx_ready_callback(_uart0.callback_arg, rx_ptr, rx_length, &next_buffer, &next_buffer_length);
+		if(next_buffer && next_buffer_length > 0)
+		{
+			_SetupRxDma(&_uart0, next_buffer, next_buffer_length);
+		}
 	}
 	
 	if(uart_status & UART_SR_TXEMPTY)
 	{
-		_uart0.tx_ready_callback(UART0);
+		_uart0.tx_ready_callback(_uart0.callback_arg, &next_buffer, &next_buffer_length);
+		if(next_buffer && next_buffer_length)
+		{
+			_SetupTxDma(&_uart0, next_buffer, next_buffer_length);
+		}
 	}
 }
 
 void UART1_Handler()
 {
+	void* next_buffer = NULL;
+	uint32_t next_buffer_length = 0;
+
 	uint32_t uart_status = uart_get_status(UART1);
 	if(uart_status & (UART_SR_RXRDY | UART_IER_RXBUFF))
 	{
-		_uart1.rx_ready_callback(UART1);
+		void* rx_ptr = (void*)pdc_read_rx_ptr(_uart1.pdc_base);
+		uint32_t rx_length = pdc_read_rx_counter(_uart1.pdc_base);
+
+		_uart1.rx_ready_callback(_uart1.callback_arg, rx_ptr, rx_length, &next_buffer, &next_buffer_length);
+		if(next_buffer && next_buffer_length > 0)
+		{
+			_SetupRxDma(&_uart1, next_buffer, next_buffer_length);
+		}
 	}
 	
 	if(uart_status & UART_SR_TXEMPTY)
 	{
-		_uart1.tx_ready_callback(UART1);
+		_uart1.tx_ready_callback(_uart1.callback_arg, &next_buffer, &next_buffer_length);
+		if(next_buffer && next_buffer_length)
+		{
+			_SetupTxDma(&_uart1, next_buffer, next_buffer_length);
+		}
 	}
 }
 
@@ -78,6 +131,7 @@ uart_t Uart_Create(uart_params_t* params)
 	interface->rx_ready_callback = params->rx_ready_callback;
 	interface->baud_rate = params->baud_rate;
 	interface->pdc_base = pdc_base;
+	interface->callback_arg = params->callback_arg;
 
 	//setup the options for the uart
 	sam_uart_opt_t uart_settings = 
@@ -102,28 +156,32 @@ uart_t Uart_Create(uart_params_t* params)
 
 bool Uart_DmaWrite(uart_t port, void* buffer, uint32_t buffer_length)
 {
-	_uart_t* interface = (_uart_t*)port;
-
-	interface->tx_dma_packet.ul_addr = (uint32_t)buffer;
-	interface->tx_dma_packet.ul_size = buffer_length;
-
-	pdc_tx_init(interface->pdc_base, &interface->tx_dma_packet, NULL);
-	uart_enable_interrupt(interface->dev, UART_IER_TXEMPTY);
-	pdc_enable_transfer(interface->pdc_base, PERIPH_PTCR_TXTEN);
-
+	_SetupTxDma(port, buffer, buffer_length);
 	return true;
 }
 
 bool Uart_DmaRead(uart_t port, void* buffer, uint32_t buffer_length)
 {
+	_SetupRxDma(port, buffer, buffer_length);
+	return true;
+}
+
+void Uart_StopWrite(uart_t port, void** buffer, uint32_t* buffer_length)
+{
 	_uart_t* interface = (_uart_t*)port;
 
-	interface->rx_dma_packet.ul_addr = (uint32_t)buffer;
-	interface->rx_dma_packet.ul_size = buffer_length;
+	pdc_disable_transfer(interface->pdc_base, PERIPH_PTCR_TXTDIS);
 
-	pdc_rx_init(interface->pdc_base, &interface->rx_dma_packet, NULL);
-	uart_enable_interrupt(interface->dev, UART_IER_RXBUFF);
-	pdc_enable_transfer(interface->pdc_base, PERIPH_PTCR_RXTEN);
+	*buffer = (void*) pdc_read_tx_ptr(interface->pdc_base);
+	*buffer_length = pdc_read_tx_counter(interface->pdc_base);
+}
 
-	return true;
+void Uart_StopRead(uart_t port, void** buffer, uint32_t* buffer_length)
+{
+	_uart_t* interface = (_uart_t*)port;
+
+	pdc_disable_transfer(interface->pdc_base, PERIPH_PTCR_RXTDIS);
+
+	*buffer = (void*) pdc_read_rx_ptr(interface->pdc_base);
+	*buffer_length = pdc_read_rx_counter(interface->pdc_base);
 }
