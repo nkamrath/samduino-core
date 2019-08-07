@@ -15,7 +15,7 @@ typedef struct
 static _uart_t _uart0;
 static _uart_t _uart1;
 
-void _SetupRxDma(uart_t port, void* buffer, uint32_t length)
+static void _SetupRxDma(uart_t port, void* buffer, uint32_t length)
 {
 	_uart_t* interface = (_uart_t*)port;
 
@@ -27,7 +27,7 @@ void _SetupRxDma(uart_t port, void* buffer, uint32_t length)
 	pdc_enable_transfer(interface->pdc_base, PERIPH_PTCR_RXTEN);
 }
 
-void _SetupTxDma(uart_t port, void* buffer, uint32_t length)
+static void _SetupTxDma(uart_t port, void* buffer, uint32_t length)
 {
 	_uart_t* interface = (_uart_t*)port;
 
