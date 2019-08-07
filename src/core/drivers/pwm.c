@@ -39,13 +39,13 @@ pwm_t Pwm_Create(pwm_params_t* params)
 			};
 			pwm_init(PWM, &clock_settings);
 
-			handle->channel.ul_prescaler = PWM_CMR_CPRE_CLKA;
+		}
+		// else
+		// {
+		// 	handle->channel.ul_prescaler = PWM_CMR_CPRE_CLKB;
+		// }
 
-		}
-		else
-		{
-			handle->channel.ul_prescaler = PWM_CMR_CPRE_CLKB;
-		}
+		handle->channel.ul_prescaler = PWM_CMR_CPRE_CLKA;
 
 		//TODO: perform pin output setup if there are pin configs included in the pwm config
 		pio_set_peripheral(params->gpio_controller, params->pin_mux_setting, (1<<params->pin_index));

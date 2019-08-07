@@ -44,6 +44,17 @@ int main(void)
 	};
 	pwm_t test_pwm = Pwm_Create(&pwm_params);
 
+	pwm_params_t pwm_params2 = {
+		.pwm_module = PWM,
+		.pwm_channel = 1,
+		.period = 250,
+		.duty_cycle = 50,
+		.gpio_controller = PIOA,
+		.pin_index = PIO_PA1_IDX,
+		.pin_mux_setting = PIO_PERIPH_A
+	};
+	pwm_t test_pwm2 = Pwm_Create(&pwm_params2);
+
 
 	/* create some threads */
 	Thread_Create(task_monitor, "Monitor", TASK_MONITOR_STACK_SIZE, NULL, TASK_MONITOR_STACK_PRIORITY, &task_monitor_thread);
