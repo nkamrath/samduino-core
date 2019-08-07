@@ -1,4 +1,5 @@
 #include "mpu9250.h"
+#include <string.h>
 
 #define RATE_DIV                (0x19)
 #define GYRO_CONFIG             (0x1B)
@@ -36,6 +37,21 @@
 #define DINBC6 0xc6
 
 #define DMP_CODE_SIZE           (3062)
+
+#define AK8963_ADDRESS 0x0c
+#define AK8963_DATA_ADDRESS 0x02
+#define AK8963_CTRL_REG 0b10001000
+#define AK8963_CNTL1_REG_ADDRESS 0x0A
+#define AK8963_CNTL1_VALUE 0x16
+
+#define I2C_MASTER_CONTROL 36
+#define I2C_MASTER_CONTROL_VALUE 0x1D
+#define I2C_SLV0_ADDR 37
+#define I2C_SLV0_REG 38
+#define I2C_SLV0_CTRL 39
+#define I2C_SLV0_DO 99
+
+#define EXT_SENS_DATA_00 73
 
 typedef struct
 {
@@ -296,23 +312,68 @@ void _WakeChip(_mpu9250_t* device)
     _Write(device, PWR_MGMT_2, &wake_val, 1);
 }
 
-void _RestDmp(_mpu9250_t* device)
-{
-    uint8_t reset_val = 0x08;
-    _Write(device, USER_CTRL, &reset_val, 1);
-}
-
 void _EnableDmp(_mpu9250_t* device)
 {
-    uint8_t enable_val = 0x80 | (1<<6) | (1<<2);
+    uint8_t enable_val = 0x80 | (1<<6) | (1<<2) | (1<<5);
     _Write(device, USER_CTRL, &enable_val, 1);
 }
 
-void _ResetFifo(_mpu9250_t* device)
+bool _SetupMag(_mpu9250_t* device)
 {
-    uint8_t write_val = (1<<6) | (1<<2);
-    _Write(device, USER_CTRL, &write_val, 1);
+    //enable i2c master mode
+    uint8_t enable_val = (1<<5);
+    _Write(device, USER_CTRL, &enable_val, 1);
+
+    enable_val = I2C_MASTER_CONTROL_VALUE;
+    _Write(device, I2C_MASTER_CONTROL, &enable_val, 1);
+
+    //this is a magici write to an undocumented register...
+    uint8_t write_val = AK8963_ADDRESS;
+    _Write(device, I2C_SLV0_ADDR, &write_val, 1);
+
+    write_val = 0x0B;
+    _Write(device, I2C_SLV0_REG, &write_val, 1);
+
+    write_val = 0x01;
+    _Write(device, I2C_SLV0_DO, &write_val, 1);
+
+    write_val = 0x81;
+    _Write(device, I2C_SLV0_CTRL, &write_val, 1);
+
+    //need delay for mpu to actually push this write to the mag
+    for(volatile int i = 0; i < 1000000; i++);
+
+    //need to enable continuous measurement mode
+    write_val = AK8963_ADDRESS;
+    _Write(device, I2C_SLV0_ADDR, &write_val, 1);
+
+    write_val = 0x0A;
+    _Write(device, I2C_SLV0_REG, &write_val, 1);
+
+    write_val = 0x16;
+    _Write(device, I2C_SLV0_DO, &write_val, 1);
+
+    write_val = 0x81;
+    _Write(device, I2C_SLV0_CTRL, &write_val, 1);
+
+    for(volatile int i = 0; i < 1000000; i++);
+
+    //now setup the final values that will stay in the mpu slv0 regs to continuously read the mag value
+    //seupt the slave i2c address and or with 0x80 to indicate read
+    write_val = AK8963_ADDRESS | 0x80;
+    _Write(device, I2C_SLV0_ADDR, &write_val, 1);
+    
+    //set the register of the i2c slave to read
+    write_val = 0x02;
+    _Write(device, I2C_SLV0_REG, &write_val, 1);
+
+    write_val = 0x88;
+    _Write(device, I2C_SLV0_CTRL, &write_val, 1);
+
+    return true;
 }
+
+
 
 bool _LoadDmpFirmware(_mpu9250_t* device)
 {
@@ -419,7 +480,7 @@ bool _EnableInterrupts(_mpu9250_t* device)
 
 void _EnableFifo(_mpu9250_t* device)
 {
-    uint8_t enable_value = (1<<6) | (1<<2);
+    uint8_t enable_value = (1<<6) | (1<<2) | (1<<5);
     _Write(device, USER_CTRL, &enable_value, 1);
 }
 
@@ -437,6 +498,7 @@ void _DisableAllSensors(_mpu9250_t* device)
 void _EnableAllSensors(_mpu9250_t* device)
 {
     uint8_t enable_flags = 0x00;
+    _SetupMag(device);
     _Write(device, PWR_MGMT_2, &enable_flags, 1);
 }
 
@@ -547,6 +609,22 @@ bool Mpu9250_ReadQuat(mpu9250_t dev_ptr, int32_t* values)
         _EnableDmp(device);
     }
     return false;
+}
+
+bool Mpu9250_ReadMag(mpu9250_t dev_ptr, int16_t* values)
+{
+    _mpu9250_t* device = (_mpu9250_t*) dev_ptr;
+    uint8_t read_data[8];
+    _Read(device, EXT_SENS_DATA_00, read_data, 8);
+    if(read_data[0] & 0x01)
+    {
+        memcpy(values, &read_data[1], 6);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void Mpu9250_SetGyroScale(mpu9250_t dev_ptr, gyro_scale_t scale)

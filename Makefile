@@ -25,9 +25,9 @@ LINKER_SCRIPT = -T$(CURRENT_DIR)/src/core/ASF/sam/utils/linker_scripts/sam4s/sam
 
 OBJ_COPY_FLAGS = -O binary
 
-AS_SRCS=$(shell find . -name '*.asm')
-CC_SRCS=$(shell find -L . -name '*.c')
-CXX_SRCS=$(shell find . -name '*.cpp')
+AS_SRCS=$(shell find ./src -name '*.asm')
+CC_SRCS=$(shell find -L ./src -name '*.c')
+CXX_SRCS=$(shell find ./src/ -name '*.cpp')
 
 AS_OBJS=$(patsubst %.asm,$(OUTPUT_DIR)/%.0,$(AS_SRCS))
 CC_OBJS=$(patsubst %.c,$(OUTPUT_DIR)/%.o,$(CC_SRCS))
