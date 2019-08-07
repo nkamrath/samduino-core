@@ -3,9 +3,7 @@
 typedef struct
 {
 	void* pwm_module;
-	uint8_t channel;
-	uint32_t period;
-	uint32_t duty_cycle;
+	pwm_channel_t channel;
 } _pwm_t;
 
 typedef struct
@@ -25,18 +23,14 @@ pwm_t Pwm_Create(pwm_params_t* params)
 	{
 		handle = &_pwm_channels[params->pwm_channel];
 		handle->pwm_module = params->pwm_module;
-		handle->period = params->period;
-		handle->duty_cycle = params->duty_cycle;
 
 		pmc_enable_periph_clk(ID_PWM);
-		pwm_channel_disable(handle->pwm_module, handle->channel);
-
-		pwm_channel_t temp;
+		pwm_channel_disable(handle->pwm_module, handle->channel.channel);
 
 		if(params->period != (_pwm_module_settings.clk_a * 1000) && _pwm_module_settings.clk_a == 0)
 		{
 			//setup the frequency of clk a
-			_pwm_module_settings.clk_a = 1000 * handle->period;
+			_pwm_module_settings.clk_a = 1000 * params->period;
 
 			pwm_clock_t clock_settings = {
 				.ul_clka = _pwm_module_settings.clk_a,
@@ -45,23 +39,35 @@ pwm_t Pwm_Create(pwm_params_t* params)
 			};
 			pwm_init(PWM, &clock_settings);
 
-			temp.ul_prescaler = PWM_CMR_CPRE_CLKA;
+			handle->channel.ul_prescaler = PWM_CMR_CPRE_CLKA;
 
 		}
 		else
 		{
-			temp.ul_prescaler = PWM_CMR_CPRE_CLKB;
+			handle->channel.ul_prescaler = PWM_CMR_CPRE_CLKB;
 		}
 
 		//TODO: perform pin output setup if there are pin configs included in the pwm config
 
 		
-		temp.ul_period = handle->period;
-		temp.ul_duty = handle->duty_cycle;
-		temp.channel = handle->channel;
-		pwm_channel_init(PWM, &temp);
+		handle->channel.ul_period = params->period;
+		handle->channel.ul_duty = params->duty_cycle;
+		handle->channel.channel = params->pwm_channel;
+		pwm_channel_init(PWM, &handle->channel);
 
 	}
 
 	return handle;
+}
+
+void Pwm_ChangeDuty(pwm_t pwm, uint32_t new_duty)
+{
+	_pwm_t* handle = (_pwm_t*)pwm;
+	pwm_channel_update_duty(handle->pwm_module, &handle->channel, new_duty);
+}
+
+void Pwm_ChangePeriod(pwm_t pwm, uint32_t new_period)
+{
+	_pwm_t* handle = (_pwm_t*)pwm;
+	pwm_channel_update_period(handle->pwm_module, &handle->channel, new_period);
 }

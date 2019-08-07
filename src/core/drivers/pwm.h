@@ -23,5 +23,7 @@ typedef struct
 } pwm_params_t;
 
 pwm_t Pwm_Create(pwm_params_t* params);
+void Pwm_ChangeDuty(pwm_t pwm, uint32_t new_duty);
+void Pwm_ChangePeriod(pwm_t pwm, uint32_t new_period);
 
 #endif
