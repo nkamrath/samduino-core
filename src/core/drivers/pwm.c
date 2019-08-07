@@ -27,10 +27,10 @@ pwm_t Pwm_Create(pwm_params_t* params)
 		pmc_enable_periph_clk(ID_PWM);
 		pwm_channel_disable(handle->pwm_module, handle->channel.channel);
 
-		if(params->period != (_pwm_module_settings.clk_a * 1000) && _pwm_module_settings.clk_a == 0)
+		if(_pwm_module_settings.clk_a == 0)
 		{
 			//setup the frequency of clk a
-			_pwm_module_settings.clk_a = 1000 * params->period;
+			_pwm_module_settings.clk_a = 1000 * 100;
 
 			pwm_clock_t clock_settings = {
 				.ul_clka = _pwm_module_settings.clk_a,
@@ -48,13 +48,13 @@ pwm_t Pwm_Create(pwm_params_t* params)
 		}
 
 		//TODO: perform pin output setup if there are pin configs included in the pwm config
-
+		pio_set_peripheral(params->gpio_controller, params->pin_mux_setting, (1<<params->pin_index));
 		
 		handle->channel.ul_period = params->period;
 		handle->channel.ul_duty = params->duty_cycle;
 		handle->channel.channel = params->pwm_channel;
 		pwm_channel_init(PWM, &handle->channel);
-
+		pwm_channel_enable(PWM, params->pwm_channel);
 	}
 
 	return handle;
