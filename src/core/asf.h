@@ -151,6 +151,8 @@
 // From module: Supported ports of FatFS
 #include <diskio.h>
 
+#include <pwm.h>
+
 // From module: System Clock Control - SAM4S implementation
 #include <sysclk.h>
 
