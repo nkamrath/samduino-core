@@ -138,7 +138,8 @@ usart_t Usart_Create(usart_params_t* params)
 	{
 		sysclk_get_cpu_hz(),
 		params->baud_rate,
-		US_MR_PAR_NO
+		params->parity,
+		params->stop_bits
 	};
 
 	//enable clock gate to peripheral

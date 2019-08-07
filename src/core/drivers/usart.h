@@ -11,6 +11,8 @@ typedef struct
 	void* dev_ptr;
 	uint32_t baud_rate;
 	void* callback_arg;
+	uint32_t parity;
+	uint32_t stop_bits;
 	void (*tx_ready_callback)(void* arg, void** next_tx_buffer, uint32_t* next_tx_buffer_length);
 	void (*rx_ready_callback)(void* arg, void* rx_data, uint32_t rx_length, void** next_rx_buffer, uint32_t* next_rx_buffer_length);
 } usart_params_t;
