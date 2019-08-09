@@ -105,7 +105,7 @@ usart_t Usart_Create(usart_params_t* params)
 	if(params->dev_ptr == USART0)
 	{
 		//set pins for usart0 peripheral, peripheral A RXD = PA9, TXD = PA10
-		pio_configure(PIOA, PIO_PERIPH_A, (PIO_PA9A_URXD0 | PIO_PA10A_UTXD0), PIO_DEFAULT);
+		pio_configure(PIOA, PIO_PERIPH_A, (PIO_PA5A_RXD0 | PIO_PA6A_TXD0), PIO_DEFAULT);
 		//set the usart irq number
 		usart_irq_num = USART0_IRQn;
 		usart_id = ID_USART0;
@@ -115,7 +115,7 @@ usart_t Usart_Create(usart_params_t* params)
 	else if(params->dev_ptr == USART1)
 	{
 		//set pins for usart1 peripheral
-		pio_configure(PIOB, PIO_PERIPH_A, (PIO_PB2A_URXD1 | PIO_PB3A_UTXD1), PIO_DEFAULT);
+		pio_configure(PIOA, PIO_PERIPH_A, (PIO_PA21A_RXD1 | PIO_PA22A_TXD1), PIO_DEFAULT);
 		usart_irq_num = USART1_IRQn;
 		usart_id = ID_USART1;
 		pdc_base = PDC_USART1;
@@ -136,10 +136,12 @@ usart_t Usart_Create(usart_params_t* params)
 	//setup the options for the usart
 	sam_usart_opt_t usart_settings = 
 	{
-		sysclk_get_cpu_hz(),
+		
 		params->baud_rate,
+		US_MR_CHRL_8_BIT,
 		params->parity,
-		params->stop_bits
+		params->stop_bits,
+		US_MR_CHMODE_NORMAL
 	};
 
 	//enable clock gate to peripheral
