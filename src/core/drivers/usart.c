@@ -55,6 +55,10 @@ void USART0_Handler()
 		{
 			_SetupRxDma(&_usart0, next_buffer, next_buffer_length);
 		}
+		else
+		{
+			usart_disable_interrupt(_usart0.dev, US_IDR_RXBUFF);
+		}
 	}
 	
 	if(usart_status & US_CSR_TXEMPTY)
@@ -63,6 +67,10 @@ void USART0_Handler()
 		if(next_buffer && next_buffer_length)
 		{
 			_SetupTxDma(&_usart0, next_buffer, next_buffer_length);
+		}
+		else
+		{
+			usart_disable_interrupt(_usart0.dev, US_IDR_TXEMPTY);
 		}
 	}
 }
@@ -83,6 +91,10 @@ void USART1_Handler()
 		{
 			_SetupRxDma(&_usart1, next_buffer, next_buffer_length);
 		}
+		else
+		{
+			usart_disable_interrupt(_usart1.dev, US_IDR_RXBUFF);
+		}
 	}
 	
 	if(usart_status & US_CSR_TXEMPTY)
@@ -91,6 +103,10 @@ void USART1_Handler()
 		if(next_buffer && next_buffer_length)
 		{
 			_SetupTxDma(&_usart1, next_buffer, next_buffer_length);
+		}
+		else
+		{
+			usart_disable_interrupt(_usart1.dev, US_IDR_TXEMPTY);
 		}
 	}
 }
@@ -149,6 +165,12 @@ usart_t Usart_Create(usart_params_t* params)
 
 	//init the usart peripheral
 	usart_init_rs232(interface->dev, &usart_settings, sysclk_get_peripheral_hz());
+
+
+	usart_disable_interrupt(interface->dev, US_IDR_RXBUFF);
+	usart_disable_interrupt(interface->dev, US_IDR_TXEMPTY);
+	usart_enable_tx(interface->dev);
+	usart_enable_rx(interface->dev);
 
 	//enable the rx interrupt
 	//usart_enable_interrupt(interface->dev, USART_IER_RXRDY);
