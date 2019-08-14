@@ -144,6 +144,14 @@ bool Timer_Start(timer_counter_t timer)
 	return true;
 }
 
+bool Timer_Stop(timer_counter_t timer)
+{
+	_timer_counter_t* handle = (_timer_counter_t*) timer;
+	tc_stop(handle->timer_module, handle->channel);
+
+	return true;
+}
+
 bool Timer_SetPeriod(timer_counter_t timer, uint32_t period_us)
 {
 	return true;

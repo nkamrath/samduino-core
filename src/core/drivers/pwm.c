@@ -54,10 +54,21 @@ pwm_t Pwm_Create(pwm_params_t* params)
 		handle->channel.ul_duty = params->duty_cycle;
 		handle->channel.channel = params->pwm_channel;
 		pwm_channel_init(PWM, &handle->channel);
-		pwm_channel_enable(PWM, params->pwm_channel);
 	}
 
 	return handle;
+}
+
+void Pwm_Enable(pwm_t pwm)
+{
+	_pwm_t* handle = (_pwm_t*)pwm;
+	pwm_channel_enable(handle->pwm_module, handle->channel.channel);
+}
+
+void Pwm_Disable(pwm_t pwm)
+{
+	_pwm_t* handle = (_pwm_t*)pwm;
+	pwm_channel_disable(handle->pwm_module, handle->channel.channel);	
 }
 
 void Pwm_ChangeDuty(pwm_t pwm, uint32_t new_duty)

@@ -32,6 +32,7 @@ typedef struct
 
 timer_counter_t Timer_Create(timer_counter_params_t* options);
 bool Timer_Start(timer_counter_t timer);
+bool Timer_Stop(timer_counter_t timer);
 bool Timer_SetPeriod(timer_counter_t timer, uint32_t period_us);
 bool Timer_SetDutyCycle(timer_counter_t timer, uint8_t channel, uint32_t duty_cycle_us);
 
