@@ -53,6 +53,7 @@ pwm_t Pwm_Create(pwm_params_t* params)
 		handle->channel.ul_period = params->period;
 		handle->channel.ul_duty = params->duty_cycle;
 		handle->channel.channel = params->pwm_channel;
+		handle->channel.polarity = PWM_HIGH;
 		pwm_channel_init(PWM, &handle->channel);
 	}
 
